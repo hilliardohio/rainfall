@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hilliard, Ohio Rainfall Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root{
     --bg:#f4f7fa; --card:#ffffff; --ink:#1e2a35; --muted:#5b7083;
@@ -36,6 +38,11 @@
   .net.fed{background:#e7f4e9;color:#256a34}
   footer{max-width:1100px;margin:0 auto;padding:0 16px 30px;font-size:.78rem;color:var(--muted);line-height:1.5}
   #err{display:none;background:#fdeaea;border:1px solid #f0b7b7;color:#8c2f2f;padding:12px 16px;border-radius:10px;margin-bottom:16px}
+  #map{height:380px;border-radius:10px}
+  .sechead{margin:28px 0 12px;padding-top:18px;border-top:2px solid var(--line)}
+  .sechead h2{margin:0;font-size:1.25rem;color:#7a4a12}
+  .sechead p{margin:4px 0 0;font-size:.85rem;color:var(--muted)}
+  .chartwrap.tall{height:340px}
   @media(max-width:640px){.chartwrap{height:240px}}
 </style>
 </head>
@@ -56,6 +63,7 @@
         <option value="30">Last 30 days</option>
         <option value="60" selected>Last 60 days</option>
         <option value="120">Last 120 days</option>
+        <option value="240">Last 240 days</option>
       </select>
     </label>
   </div>
@@ -87,6 +95,48 @@
     </table>
     </div>
   </section>
+
+  <div id="sewer" style="display:none">
+    <div class="sechead">
+      <h2>Sanitary Sewer Flow Monitoring</h2>
+      <p>City of Hilliard flow monitors (Hach FL900, 5&ndash;15 min samples) from the FSDATA
+         portal, aggregated to daily values. Compare sewer flow response to rainfall to spot
+         inflow &amp; infiltration.</p>
+    </div>
+
+    <section class="panel">
+      <h2>Daily sewer flow vs. daily rainfall &mdash; year to date</h2>
+      <p class="sub">Lines: daily mean and daily peak flow (gallons/min, left axis).
+         Bars: daily rainfall, all-gauge average (inches, right axis).</p>
+      <div class="controls" style="margin:4px 0 10px">
+        <label>Monitor
+          <select id="monSel"></select>
+        </label>
+      </div>
+      <div class="chartwrap tall"><canvas id="flowChart"></canvas></div>
+    </section>
+
+    <section class="panel">
+      <h2>Flow monitor &amp; rain gauge locations</h2>
+      <p class="sub">Orange = sewer flow monitors &middot; blue = official rain gauges &middot;
+         teal = city rain gauge (RG2, Hilliard Farms PS). Monitors without GPS coordinates in
+         FSDATA are listed in the table below without a pin.</p>
+      <div id="map"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Monitor summary &mdash; year to date</h2>
+      <div style="overflow-x:auto">
+      <table id="monTable">
+        <thead><tr>
+          <th>Monitor</th><th>Location</th><th>Coordinates</th><th>Data since</th>
+          <th>Days</th><th>Mean flow (gpm)</th><th>Peak flow (gpm)</th><th>Peak date</th><th>&approx;Avg MGD</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </section>
+  </div>
 </main>
 <footer>
   Data: NOAA Applied Climate Information System (<a href="https://www.rcc-acis.org/">ACIS</a>),
@@ -98,7 +148,7 @@
 
 <script>
 const AVG = "__avg__";
-let DATA = null, dailyChart = null, monthlyChart = null;
+let DATA = null, SEWER = null, dailyChart = null, monthlyChart = null, flowChart = null;
 
 const fmt = v => v == null ? "–" : v.toFixed(2) + '"';
 const palette = ["#1668a5","#c2571f","#2e8b57","#8e44ad","#b8860b","#c0392b"];
@@ -124,6 +174,10 @@ async function load(){
   document.getElementById("windowSel").onchange = render;
   buildTable();
   render();
+  try{
+    const rs = await fetch("data/sewer.json", {cache:"no-store"});
+    if(rs.ok){ SEWER = await rs.json(); initSewer(); }
+  }catch(e){ /* sewer data optional */ }
 }
 
 function lastDate(){
@@ -250,6 +304,106 @@ function render(){
   renderCards(id);
   renderDaily(id, win);
   renderMonthly(id);
+}
+
+/* ==== sanitary sewer flow section ==================================== */
+function initSewer(){
+  document.getElementById("sewer").style.display = "";
+  const sel = document.getElementById("monSel");
+  sel.innerHTML = SEWER.monitors.map(m => `<option value="${m.id}">${m.id}</option>`).join("");
+  sel.value = "FM20";                       // longest record by default
+  sel.onchange = renderFlow;
+  renderFlow();
+  buildMonTable();
+  buildMap();
+}
+
+function rainByDate(){
+  const map = new Map();
+  for (const [d,v] of dailySeries(AVG)) if (v != null) map.set(d, v);
+  return map;
+}
+
+function renderFlow(){
+  const m = SEWER.monitors.find(x => x.id === document.getElementById("monSel").value);
+  const rain = rainByDate();
+  const labels = m.daily.map(r => r[0]);
+  const avg = m.daily.map(r => r[1]);
+  const peak = m.daily.map(r => r[2]);
+  const rainVals = labels.map(d => rain.has(d) ? rain.get(d) : null);
+  if (flowChart) flowChart.destroy();
+  flowChart = new Chart(document.getElementById("flowChart"), {
+    data: {
+      labels: labels.map(d => d.slice(5)),
+      datasets: [
+        { type: "bar", label: "Rainfall (in)", data: rainVals, yAxisID: "y2",
+          backgroundColor: "rgba(63,155,208,.55)", maxBarThickness: 14, order: 3 },
+        { type: "line", label: "Peak flow (gpm)", data: peak, yAxisID: "y",
+          borderColor: "rgba(194,87,31,.35)", borderWidth: 1.2, pointRadius: 0,
+          tension: .25, order: 2 },
+        { type: "line", label: "Mean flow (gpm)", data: avg, yAxisID: "y",
+          borderColor: "#c2571f", backgroundColor: "rgba(194,87,31,.08)",
+          borderWidth: 2, pointRadius: 0, tension: .25, fill: true, order: 1 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, interaction: {mode: "index", intersect: false},
+      plugins: { legend: {position: "top", labels: {boxWidth: 18}} },
+      scales: {
+        x: { grid: {display: false}, ticks: {maxRotation: 60, autoSkip: true, maxTicksLimit: 20} },
+        y: { beginAtZero: true, title: {display: true, text: "gallons / min"} },
+        y2: { beginAtZero: true, position: "right", grid: {drawOnChartArea: false},
+              title: {display: true, text: "rain (in / day)"} }
+      }
+    }
+  });
+}
+
+function buildMonTable(){
+  const tb = document.querySelector("#monTable tbody");
+  tb.innerHTML = SEWER.monitors.map(m => {
+    const days = m.daily.length;
+    const mean = m.daily.reduce((t,r) => t + r[1], 0) / days;
+    let pk = m.daily[0];
+    for (const r of m.daily) if (r[2] > pk[2]) pk = r;
+    const coord = m.lat != null
+      ? `<a href="https://www.openstreetmap.org/?mlat=${m.lat}&mlon=${m.lon}#map=15/${m.lat}/${m.lon}">${m.lat.toFixed(5)}, ${m.lon.toFixed(5)}</a>`
+      : "<span style='color:var(--muted)'>not set</span>";
+    return `<tr>
+      <td><strong style="color:#c2571f">${m.id}</strong><br>
+          <span style="color:var(--muted);font-size:.78rem">site ${m.siteNum} · ${m.instrument}</span></td>
+      <td>${m.note || ""}</td>
+      <td class="num">${coord}</td>
+      <td class="num">${m.start}</td>
+      <td class="num">${days}</td>
+      <td class="num">${Math.round(mean).toLocaleString()}</td>
+      <td class="num">${pk[2].toLocaleString()}</td>
+      <td class="num">${pk[0]}</td>
+      <td class="num">${(mean * 1440 / 1e6).toFixed(2)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function buildMap(){
+  const map = L.map("map");
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+  const pts = [];
+  const mk = (lat, lon, color, html) => {
+    pts.push([lat, lon]);
+    L.circleMarker([lat, lon], {radius: 8, color, weight: 2, fillColor: color, fillOpacity: .6})
+      .addTo(map).bindPopup(html);
+  };
+  for (const m of SEWER.monitors)
+    if (m.lat != null) mk(m.lat, m.lon, "#c2571f",
+      `<strong>${m.id}</strong> — sewer flow monitor<br>${m.note || ""}<br>${m.lat.toFixed(5)}, ${m.lon.toFixed(5)}`);
+  const rg = SEWER.rain_gauge_reference;
+  if (rg && rg.lat != null) mk(rg.lat, rg.lon, "#0f766e",
+    `<strong>${rg.id}</strong><br>${rg.note}`);
+  for (const s of DATA.stations)
+    if (s.lat != null) mk(s.lat, s.lon, "#1668a5",
+      `<strong>${s.name}</strong><br>${s.network}<br>${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}`);
+  map.fitBounds(pts, {padding: [24, 24]});
 }
 load();
 </script>

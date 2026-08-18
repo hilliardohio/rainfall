@@ -48,11 +48,38 @@ python3 -m http.server   # then open http://localhost:8000
 (Opening `index.html` directly from disk won't load the JSON due to browser
 file:// restrictions.)
 
+## Sanitary sewer flow monitoring
+
+The dashboard also shows the City of Hilliard's sanitary sewer flow monitors
+(Hach FL900 units reporting to the FSDATA portal at hachfsdata.mccrometer.com):
+a location map, year-to-date daily mean/peak flow in gallons per minute, and a
+combined chart overlaying daily rainfall on each monitor's flow so
+inflow & infiltration response is visible.
+
+**Updating sewer data:** FSDATA requires a login, so this part is not updated
+by the GitHub Action. To refresh (takes ~2 minutes):
+
+1. Log in at https://hachfsdata.mccrometer.com
+2. Open the browser DevTools console on that page (F12)
+3. Paste the entire contents of `scripts/update_sewer.js` and press Enter
+4. A fresh `sewer.json` downloads — replace `data/sewer.json` in this repo
+   and commit
+
+Monitor coordinates: FM19/FM20/FM22A/FM24 use GPS from legacy FSDATA site
+entries; FM25/27/28/29A/30/31 have no GPS in FSDATA. Edit the `MONITORS` list
+at the top of `scripts/update_sewer.js` (and `data/sewer.json`) to add them —
+or set real GPS in FSDATA's Instrument Manager and rerun the update script.
+
+If the city obtains FSDATA API credentials from McCrometer, the update could
+be fully automated in the GitHub Action like the rainfall data.
+
 ## Files
 
-- `index.html` — the dashboard (Chart.js, no build step)
+- `index.html` — the dashboard (Chart.js + Leaflet, no build step)
 - `data/rainfall.json` — daily + monthly precipitation, regenerated each run
-- `scripts/fetch_data.py` — fetcher (Python 3 stdlib only)
+- `data/sewer.json` — daily sewer flow per monitor (semi-manual refresh)
+- `scripts/fetch_data.py` — rainfall fetcher (Python 3 stdlib only)
+- `scripts/update_sewer.js` — sewer-flow refresh script (paste into FSDATA console)
 - `.github/workflows/update-data.yml` — daily automation
 
 ## Data notes

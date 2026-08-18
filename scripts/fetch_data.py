@@ -19,7 +19,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 ACIS_URL = "https://data.rcc-acis.org/StnData"
-DAILY_WINDOW_DAYS = 120   # most recent days kept at daily resolution
+DAILY_WINDOW_DAYS = 240   # most recent days kept at daily resolution (covers YTD for sewer-flow comparison)
 HISTORY_YEARS = 5         # monthly totals kept this far back
 
 STATIONS = [
