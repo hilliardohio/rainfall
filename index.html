@@ -20,7 +20,7 @@
   main{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
   .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:6px 0 16px}
   .controls label{font-size:.85rem;color:var(--muted)}
-  select{font-size:.95rem;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  select,input[type=date]{font-size:.95rem;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:0 1px 2px rgba(20,40,60,.05)}
   .card .v{font-size:1.5rem;font-weight:650;color:var(--accent)}
@@ -99,6 +99,20 @@
       <div class="controls" style="margin:4px 0 10px">
         <label>Monitor
           <select id="monSel"></select>
+        </label>
+        <label>From
+          <input type="date" id="flowFrom">
+        </label>
+        <label>To
+          <input type="date" id="flowTo">
+        </label>
+        <label>Quick range
+          <select id="flowPreset">
+            <option value="all">Full record (YTD)</option>
+            <option value="90">Last 90 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="14">Last 14 days</option>
+          </select>
         </label>
       </div>
       <div class="chartwrap tall"><canvas id="flowChart"></canvas></div>
@@ -314,8 +328,31 @@ function initSewer(){
   const sel = document.getElementById("monSel");
   sel.innerHTML = SEWER.monitors.map(m => `<option value="${m.id}">${m.id}</option>`).join("");
   sel.value = "FM20";                       // longest record by default
+  // date-range controls
+  const from = document.getElementById("flowFrom"), to = document.getElementById("flowTo");
+  const preset = document.getElementById("flowPreset");
+  const allDates = SEWER.monitors.flatMap(m => [m.daily[0][0], m.daily[m.daily.length-1][0]]).sort();
+  const minD = allDates[0], maxD = allDates[allDates.length-1];
+  from.min = to.min = minD; from.max = to.max = maxD;
+  const applyPreset = () => {
+    if (preset.value === "all"){ from.value = minD; to.value = maxD; }
+    else {
+      const end = new Date(maxD + "T00:00:00");
+      const start = new Date(end.getTime() - (preset.value - 1) * 86400e3);
+      to.value = maxD;
+      from.value = start.toISOString().slice(0,10) < minD ? minD : start.toISOString().slice(0,10);
+    }
+    renderFlow();
+  };
+  preset.onchange = applyPreset;
+  const onRange = (e) => {
+    if (from.value > to.value){ if (e.target === from) to.value = from.value; else from.value = to.value; }
+    preset.value = "";                       // custom range
+    renderFlow();
+  };
+  from.onchange = onRange; to.onchange = onRange;
   sel.onchange = renderFlow;
-  renderFlow();
+  applyPreset();                             // default: last 30 days
   buildMonTable();
   buildMap();
 }
@@ -329,9 +366,12 @@ function rainByDate(){
 function renderFlow(){
   const m = SEWER.monitors.find(x => x.id === document.getElementById("monSel").value);
   const rain = rainByDate();
-  const labels = m.daily.map(r => r[0]);
-  const avg = m.daily.map(r => r[1]);
-  const peak = m.daily.map(r => r[2]);
+  const f = document.getElementById("flowFrom").value || "0000";
+  const t = document.getElementById("flowTo").value || "9999";
+  const rows = m.daily.filter(r => r[0] >= f && r[0] <= t);
+  const labels = rows.map(r => r[0]);
+  const avg = rows.map(r => r[1]);
+  const peak = rows.map(r => r[2]);
   const rainVals = labels.map(d => rain.has(d) ? rain.get(d) : null);
   if (flowChart) flowChart.destroy();
   flowChart = new Chart(document.getElementById("flowChart"), {
