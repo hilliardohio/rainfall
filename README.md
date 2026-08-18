@@ -1,4 +1,4 @@
-# Hilliard, Ohio Rainfall Dashboard
+# Hilliard - Rainfall and Sanitary Sewer Flow Dashboard
 
 A self-updating rainfall dashboard for Hilliard, OH and surrounding areas, built for
 GitHub Pages. Data comes from official gauges served by NOAA's Applied Climate

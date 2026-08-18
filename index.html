@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hilliard, Ohio Rainfall Dashboard</title>
+<title>Hilliard - Rainfall and Sanitary Sewer Flow Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -48,8 +48,8 @@
 </head>
 <body>
 <header>
-  <h1>Hilliard, Ohio &mdash; Rainfall Dashboard</h1>
-  <p>Official gauges: National Weather Service ASOS &amp; NOAA/NWS-partner CoCoRaHS stations</p>
+  <h1>Hilliard &mdash; Rainfall and Sanitary Sewer Flow Dashboard</h1>
+  <p>Official rain gauges (NWS ASOS &amp; NOAA/NWS-partner CoCoRaHS) &middot; City of Hilliard sewer flow monitors (Hach FSDATA)</p>
   <p id="updated"></p>
 </header>
 <main>
@@ -82,20 +82,6 @@
     <div class="chartwrap"><canvas id="monthlyChart"></canvas></div>
   </section>
 
-  <section class="panel">
-    <h2>Gauge locations</h2>
-    <p class="sub">Exact station coordinates from NOAA ACIS metadata.</p>
-    <div style="overflow-x:auto">
-    <table id="stTable">
-      <thead><tr>
-        <th>Station</th><th>Network</th><th>Location</th><th>Coordinates</th>
-        <th>Elev (ft)</th><th>Records since</th><th>Yesterday</th><th>Last 30 d</th>
-      </tr></thead>
-      <tbody></tbody>
-    </table>
-    </div>
-  </section>
-
   <div id="sewer" style="display:none">
     <div class="sechead">
       <h2>Sanitary Sewer Flow Monitoring</h2>
@@ -107,7 +93,9 @@
     <section class="panel">
       <h2>Daily sewer flow vs. daily rainfall &mdash; year to date</h2>
       <p class="sub">Lines: daily mean and daily peak flow (gallons/min, left axis).
-         Bars: daily rainfall, all-gauge average (inches, right axis).</p>
+         Bars: daily rainfall, all-gauge average (inches, right axis).
+         Series are stitched across FSDATA site records where monitors were redeployed mid-year;
+         monitors first installed mid-year (FM19, FM27&ndash;FM31) start at their first day of data.</p>
       <div class="controls" style="margin:4px 0 10px">
         <label>Monitor
           <select id="monSel"></select>
@@ -137,6 +125,20 @@
       </div>
     </section>
   </div>
+
+  <section class="panel">
+    <h2>Gauge locations</h2>
+    <p class="sub">Exact station coordinates from NOAA ACIS metadata.</p>
+    <div style="overflow-x:auto">
+    <table id="stTable">
+      <thead><tr>
+        <th>Station</th><th>Network</th><th>Location</th><th>Coordinates</th>
+        <th>Elev (ft)</th><th>Records since</th><th>Yesterday</th><th>Last 30 d</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+  </section>
 </main>
 <footer>
   Data: NOAA Applied Climate Information System (<a href="https://www.rcc-acis.org/">ACIS</a>),
