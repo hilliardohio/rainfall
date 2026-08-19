@@ -1,0 +1,34 @@
+name: Update rainfall data
+
+on:
+  schedule:
+    - cron: "30 11 * * *"   # daily ~7:30 AM Eastern (11:30 UTC)
+  workflow_dispatch: {}      # allow manual runs from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch latest rainfall data
+        run: python scripts/fetch_data.py
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/rainfall.json
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Update rainfall data $(date -u +%F)"
+            git push
+          fi
