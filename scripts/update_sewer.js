@@ -12,24 +12,30 @@
  * aggregates to daily mean/peak in gallons per minute. It only READS data.
  *
  * MONITORS: edit this list to add/remove monitors or fix coordinates.
- * If lat/lon is null and FSDATA has real GPS set (Instrument Manager), the
- * FSDATA value is used automatically.
+ * If lat/lon is null and FSDATA has real GPS set (Site Properties on the
+ * Dashboard > Map page, or Instrument Manager), the FSDATA value is used
+ * automatically.
  *
  * `legacy` lists earlier FSDATA site records for the same physical monitor
  * (the city redeploys monitors under new siteNums). Their year-to-date data
  * is stitched in front of the current site's data automatically.
+ *
+ * 2026-08-25: FM25/FM27-FM31 GPS coordinates are now set in FSDATA
+ * (Dashboard > Map > select site > Site Properties). Coordinates below were
+ * read from FSDATA GetSiteInformation and hard-coded; delete a lat/lon (set
+ * to null) to have the script re-read it from FSDATA on the next run.
  */
 const MONITORS = [
   { id: "FM19",  siteNum: 52128, lat: 40.06427, lon: -83.12838, note: "NW Hilliard, near Davidson Rd/Leppert area", legacy: [] },
   { id: "FM20",  siteNum: 43063, lat: 40.02654, lon: -83.12835, note: "SE Hilliard", legacy: [] },
   { id: "FM22A", siteNum: 52650, lat: 40.03105, lon: -83.15348, note: "central Hilliard (FM-22 manhole)", legacy: [48952, 51941] },
   { id: "FM24",  siteNum: 51947, lat: 40.02975, lon: -83.16222, note: "SW Hilliard", legacy: [50363] },
-  { id: "FM25",  siteNum: 52703, lat: null, lon: null, note: "location not set in FSDATA", legacy: [48945] },
-  { id: "FM27",  siteNum: 51946, lat: null, lon: null, note: "location not set in FSDATA", legacy: [51738] },
-  { id: "FM28",  siteNum: 51748, lat: null, lon: null, note: "location not set in FSDATA", legacy: [] },
-  { id: "FM29A", siteNum: 52648, lat: null, lon: null, note: "location not set in FSDATA", legacy: [51933] },
-  { id: "FM30",  siteNum: 51934, lat: null, lon: null, note: "location not set in FSDATA", legacy: [] },
-  { id: "FM31",  siteNum: 51936, lat: null, lon: null, note: "location not set in FSDATA", legacy: [] },
+  { id: "FM25",  siteNum: 52703, lat: 40.00960, lon: -83.15082, note: "S Hilliard", legacy: [48945] },
+  { id: "FM27",  siteNum: 51946, lat: 40.02273, lon: -83.16288, note: "SW Hilliard", legacy: [51738] },
+  { id: "FM28",  siteNum: 51748, lat: 40.02453, lon: -83.16325, note: "SW Hilliard", legacy: [] },
+  { id: "FM29A", siteNum: 52648, lat: 40.03587, lon: -83.15443, note: "central Hilliard", legacy: [51933] },
+  { id: "FM30",  siteNum: 51934, lat: 40.04337, lon: -83.15794, note: "N-central Hilliard", legacy: [] },
+  { id: "FM31",  siteNum: 51936, lat: 40.02998, lon: -83.14692, note: "SE-central Hilliard", legacy: [] },
 ];
 const RAIN_GAUGE_REF = { id: "RG2-HillFarm PS", lat: 40.03551, lon: -83.20140,
   note: "City rain gauge at Hilliard Farms pump station (FSDATA)" };
